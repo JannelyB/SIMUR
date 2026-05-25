@@ -23,6 +23,8 @@
     │   └── database/               # Almacenamiento
     │       ├── __init__.py
     │       └── db_manager.py       # Funciones para guardar eventos en SQLite
+    ├── web/                        <-- NUEVA CARPETA PARA EL FRONTEND
+    │   └── app.py  
     │
     ├── config.py                   # Configuraciones globales (pines, umbrales)
     ├── main.py                     # EL NÚCLEO: Ejecuta todo el sistema
