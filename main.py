@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from src.database import inicializar_db, registrar_evento
-from src.hardware import medir_distancia, activar_alerta_roja, activar_alerta_verde
+from src.hardware import medir_distancia, medir_lluvia, activar_alerta_roja, activar_alerta_verde
 from src.vision import capturar_fotografia, DetectorRaudalIA
 
 # --- CONFIGURACIONES GLOBALES ---
@@ -26,9 +26,16 @@ def main():
     detector = DetectorRaudalIA()
 
     # 3. Conexión Serial al Arduino 
-    # (Lo dejamos en None para que use el Modo Simulación por ahora. 
-    # Cuando conectes el Arduino, aquí pondremos la ruta, ej: conexion = serial.Serial('COM3', 9600))
-    conexion_arduino = None 
+    import serial
+    try:
+        print("\n[Sistema] Intentando conectar con Arduino físico...")
+        # IMPORTANTE: Cambia 'COM3' por el puerto donde esté conectado tu Arduino (ej. COM4, COM5)
+        conexion_arduino = serial.Serial('COM3', 9600, timeout=2)
+        time.sleep(2) # Esperar a que la conexión se estabilice
+        print("[OK] Arduino conectado exitosamente.")
+    except Exception as e:
+        print(f"[WARNING] No se encontró Arduino físico en ese puerto. Pasando a Modo Simulación.")
+        conexion_arduino = None 
 
     # Variable para no llenar la base de datos con el mismo evento a cada segundo
     estado_anterior = None
@@ -38,7 +45,11 @@ def main():
     while True:
         try:
             # --- FASE 1: ENTRADA (Percepción) ---
+            lluvia_mm = medir_lluvia(conexion_arduino)
             distancia = medir_distancia(conexion_arduino)
+            
+            # Mostramos en consola el estado actual de los sensores para auditoría visual
+            print(f"💧 [Monitoreo] Lluvia: {lluvia_mm} mm | Nivel Agua: {distancia} cm")
 
             # --- FASE 2: DECISIÓN (Procesamiento Lógico) ---
             if distancia <= UMBRAL_PELIGRO_CM:
@@ -85,6 +96,8 @@ def main():
         except KeyboardInterrupt:
             # Captura cuando el usuario presiona Ctrl+C en la consola
             print("\n🛑 [Sistema] Apagando S.I.M.U.R. Monitoreo detenido.")
+            if conexion_arduino:
+                conexion_arduino.close() # Cerramos el puerto de forma segura
             break
         except Exception as e:
             print(f"\n[ERROR CRÍTICO] {e}")
