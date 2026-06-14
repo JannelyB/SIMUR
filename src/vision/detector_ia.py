@@ -1,12 +1,11 @@
-# src/vision/detector_ia.py
 import cv2
 import numpy as np
 import os
 import random
 import time
-
 import importlib
 
+# Intentar cargar la librería de TFLite
 litert = None
 for module_name in ('tensorflow.lite.python.interpreter', 'tflite_runtime.interpreter'):
     try:
@@ -25,15 +24,16 @@ class DetectorRaudalIA:
         print("[IA] Inicializando módulo de Visión...")
         self.modo_simulacion = False
         
-        # Validar si el modelo existe y si tiene un tamaño válido (más de 10 bytes)
-        if not os.path.exists(model_path) or os.path.getsize(model_path) < 10:
-            print("[WARNING IA] Modelo TFLite vacío o no encontrado.")
-            print("[WARNING IA] -> ACTIVANDO IA EN MODO SIMULACIÓN <-")
-            self.modo_simulacion = True
+        # Validación estricta: Si no hay modelo, NO permitimos simulaciones aleatorias
+        # que provoquen falsos positivos en producción.
+        if not os.path.exists(model_path):
+            print(f"[ERROR IA] Modelo no encontrado en: {model_path}")
+            print("[CRÍTICO] MODO DE SEGURIDAD ACTIVADO: El sistema no activará alarmas sin IA real.")
+            self.modo_simulacion = True 
+            self.interpreter = None
             return
             
         try:
-            # Intentar cargar el modelo real
             self.interpreter = litert.Interpreter(model_path=model_path)
             self.interpreter.allocate_tensors()
             self.input_details = self.interpreter.get_input_details()
@@ -46,32 +46,18 @@ class DetectorRaudalIA:
             print("[IA] Modelo real cargado con éxito.")
                 
         except Exception as e:
-            print(f"[WARNING IA] Error al cargar modelo real: {e}")
-            print("[WARNING IA] -> ACTIVANDO IA EN MODO SIMULACIÓN <-")
+            print(f"[ERROR IA] Fallo crítico al cargar modelo: {e}")
             self.modo_simulacion = True
 
     def evaluar_imagen(self, ruta_imagen=RUTA_IMAGEN_DEFAULT):
         if self.modo_simulacion:
-            # --- MODO SIMULACIÓN (Cuando no tienes el modelo web) ---
-            print("[IA Simulada] Analizando los píxeles de la foto...")
-            time.sleep(1) # Simulamos que la computadora está "pensando"
+            print("[IA] ADVERTENCIA: El sistema está en modo seguro. No se puede confirmar el raudal.")
+            # Retornamos False obligatoriamente para evitar falsos positivos
+            return False, "SISTEMA_SIN_MODELO_IA"
             
-            # Simularemos que la IA confirma el raudal el 80% de las veces
-            es_raudal = random.choice([True, True, True, True, False])
-            
-            if es_raudal:
-                etiqueta = "1 Raudal Detectado (Simulado)"
-                print(f"[IA Simulada] Resultado: {etiqueta} (98.5%)")
-            else:
-                etiqueta = "0 Basura/Seco (Simulado)"
-                print(f"[IA Simulada] Resultado: Falso Positivo / {etiqueta} (85.2%)")
-                
-            return es_raudal, etiqueta
-            
-        # --- MODO REAL (Se activará solo cuando pongas tu modelo real en la carpeta) ---
         img = cv2.imread(ruta_imagen)
         if img is None:
-            return False, "ERROR_IMAGEN"
+            return False, "ERROR_IMAGEN_NO_ENCONTRADA"
             
         img_resized = cv2.resize(img, (self.width, self.height))
         img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
@@ -85,6 +71,8 @@ class DetectorRaudalIA:
         porcentaje = output_data[0][idx_predicho] * 100
         etiqueta_predicha = self.labels[idx_predicho].lower()
         
-        es_raudal = "raudal" in etiqueta_predicha or "inundado" in etiqueta_predicha or "peligro" in etiqueta_predicha
-        print(f"[IA Real] Resultado: {etiqueta_predicha.upper()} ({porcentaje:.2f}%)")
+        # Filtro estricto: solo activamos si supera un 70% de confianza
+        es_raudal = ("raudal" in etiqueta_predicha or "inundado" in etiqueta_predicha) and porcentaje > 70.0
+        
+        print(f"[IA Real] Predicción: {etiqueta_predicha.upper()} ({porcentaje:.2f}%)")
         return es_raudal, etiqueta_predicha

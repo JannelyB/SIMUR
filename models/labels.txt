@@ -1,2 +1,2 @@
-0 Seguro
-1 Raudal
+0 Raudal
+1 Seguro
