@@ -5,13 +5,15 @@ import os
 import random
 import time
 
-try:
-    import tensorflow.lite.python.interpreter as litert
-except ImportError:
+import importlib
+
+litert = None
+for module_name in ('tensorflow.lite.python.interpreter', 'tflite_runtime.interpreter'):
     try:
-        import tflite_runtime.interpreter as litert
+        litert = importlib.import_module(module_name)
+        break
     except ImportError:
-        pass # Si falla, usaremos el modo simulación
+        continue
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 RUTA_MODELO = os.path.join(BASE_DIR, 'models', 'raudal_model.tflite')

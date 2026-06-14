@@ -30,7 +30,7 @@ def main():
     try:
         print("\n[Sistema] Intentando conectar con Arduino físico...")
         # IMPORTANTE: Cambia 'COM3' por el puerto donde esté conectado tu Arduino (ej. COM4, COM5)
-        conexion_arduino = serial.Serial('COM3', 9600, timeout=2)
+        conexion_arduino = serial.Serial('COM6', 9600, timeout=2)
         time.sleep(2) # Esperar a que la conexión se estabilice
         print("[OK] Arduino conectado exitosamente.")
     except Exception as e:
