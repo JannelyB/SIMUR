@@ -13,8 +13,8 @@ def capturar_fotografia():
     
     cap = None
     # Probar los índices de cámara más comunes (0 suele ser la webcam integrada)
-    for indice in [0, 1, 2]:
-        cap_temp = cv2.VideoCapture(indice)
+    for indice in [1]:
+        cap_temp = cv2.VideoCapture(indice, cv2.CAP_DSHOW)  # Usar DirectShow para evitar problemas de bloqueo en Windows
         if cap_temp.isOpened():
             cap = cap_temp
             print(f"[Visión] Conectado a la cámara (índice {indice}).")
